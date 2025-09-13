@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QuestionType, Source, Tag, CreateQuestionData } from '@/types/database';
+import LatexEditor from '@/components/LatexEditor';
 
 export default function CreateQuestionPage() {
   const router = useRouter();
@@ -179,40 +180,35 @@ export default function CreateQuestionPage() {
 
             {/* 题干 */}
             <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                题干 <span className="text-red-500">*</span>
-              </label>
-              <textarea
+              <LatexEditor
                 value={formData.stem}
-                onChange={(e) => setFormData(prev => ({ ...prev, stem: e.target.value }))}
+                onChange={(value) => setFormData(prev => ({ ...prev, stem: value }))}
+                placeholder="请输入题目内容，支持LaTeX公式..."
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="请输入题目内容..."
+                label="题干"
                 required
               />
             </div>
 
             {/* 答案 */}
             <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">答案</label>
-              <textarea
+              <LatexEditor
                 value={formData.answer || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, answer: e.target.value }))}
+                onChange={(value) => setFormData(prev => ({ ...prev, answer: value }))}
+                placeholder="请输入答案，支持LaTeX公式..."
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="请输入答案..."
+                label="答案"
               />
             </div>
 
             {/* 解析 */}
             <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">解析</label>
-              <textarea
+              <LatexEditor
                 value={formData.explanation || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
+                onChange={(value) => setFormData(prev => ({ ...prev, explanation: value }))}
+                placeholder="请输入题目解析，支持LaTeX公式..."
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="请输入题目解析..."
+                label="解析"
               />
             </div>
           </div>
@@ -240,12 +236,12 @@ export default function CreateQuestionPage() {
                       </span>
                     </div>
                     <div className="flex-1">
-                      <input
-                        type="text"
+                      <LatexEditor
                         value={option.opt_content}
-                        onChange={(e) => updateOption(index, 'opt_content', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="请输入选项内容..."
+                        onChange={(value) => updateOption(index, 'opt_content', value)}
+                        placeholder="请输入选项内容，支持LaTeX公式..."
+                        rows={2}
+                        className="mb-0"
                       />
                     </div>
                     <div className="flex items-center gap-2">

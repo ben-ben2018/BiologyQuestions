@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { QuestionWithDetails, QuestionType, Source, Tag, QuestionQueryParams } from '@/types/database';
+import LatexRenderer from '@/components/LatexRenderer';
 
 export default function QuestionsPage() {
   const [questions, setQuestions] = useState<QuestionWithDetails[]>([]);
@@ -234,9 +235,9 @@ export default function QuestionsPage() {
                         </span>
                       </div>
                       
-                      <h3 className="text-lg font-medium text-gray-900 mb-2 line-clamp-2">
-                        {question.stem}
-                      </h3>
+                      <div className="text-lg font-medium text-gray-900 mb-2 line-clamp-2">
+                        <LatexRenderer content={question.stem} />
+                      </div>
                       
                       {question.tags && question.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-3">
@@ -256,7 +257,7 @@ export default function QuestionsPage() {
                               <div key={index} className="flex items-center gap-2">
                                 <span className="font-medium">{option.opt_label}.</span>
                                 <span className={option.is_correct ? 'text-green-600 font-medium' : ''}>
-                                  {option.opt_content}
+                                  <LatexRenderer content={option.opt_content} />
                                 </span>
                                 {option.is_correct && (
                                   <span className="text-green-600 text-xs">✓</span>
