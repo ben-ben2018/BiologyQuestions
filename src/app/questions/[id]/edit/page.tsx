@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { QuestionType, Source, Tag, UpdateQuestionData, QuestionWithDetails } from '@/types/database';
+import { QuestionType, Source, Tag, UpdateQuestionData, QuestionWithDetails, MaterialQuestionData, MaterialWithDetails } from '@/types/database';
 import LatexEditor from '@/components/LatexEditor';
+import MaterialQuestionEditor from '@/components/MaterialQuestionEditor';
 
 export default function EditQuestionPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function EditQuestionPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   
+  const [isMaterialQuestion, setIsMaterialQuestion] = useState(false);
   const [formData, setFormData] = useState<UpdateQuestionData>({
     id: parseInt(questionId),
     type_id: 0,
@@ -26,28 +28,63 @@ export default function EditQuestionPage() {
     options: [],
     tag_ids: []
   });
+  const [materialFormData, setMaterialFormData] = useState<MaterialQuestionData>({
+    material_id: undefined,
+    is_material_question: false,
+    material_content: '',
+    material_title: '',
+    material_source_id: undefined,
+    questions: []
+  });
 
   // 获取题目详情
   const fetchQuestion = async () => {
     try {
-      const response = await fetch(`/api/questions/${questionId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        const question: QuestionWithDetails = result.data;
-        setFormData({
-          id: question.id,
-          type_id: question.type_id,
-          stem: question.stem,
-          answer: question.answer || '',
-          explanation: question.explanation || '',
-          source_id: question.source_id || undefined,
-          options: question.options || [],
-          tag_ids: question.tags?.map(tag => tag.id) || []
+      // 首先检查是否是材料题
+      const materialCheckResponse = await fetch(`/api/materials?question_id=${questionId}`);
+      const materialCheckResult = await materialCheckResponse.json();
+      
+      if (materialCheckResult.success && materialCheckResult.data.materials.length > 0) {
+        // 这是材料题，获取材料详情
+        const material: MaterialWithDetails = materialCheckResult.data.materials[0];
+        setIsMaterialQuestion(true);
+        setMaterialFormData({
+          material_id: material.id,
+          is_material_question: true,
+          material_content: material.content,
+          material_title: material.title || '',
+          material_source_id: material.source_id || undefined,
+          questions: material.questions?.map(q => ({
+            type_id: q.type_id,
+            stem: q.stem,
+            answer: q.answer || '',
+            explanation: q.explanation || '',
+            source_id: q.source_id || undefined,
+            options: q.options || [],
+            tag_ids: q.tags?.map(tag => tag.id) || []
+          })) || []
         });
       } else {
-        alert('获取题目详情失败: ' + result.error);
-        router.push('/questions');
+        // 普通题目
+        const response = await fetch(`/api/questions/${questionId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          const question: QuestionWithDetails = result.data;
+          setFormData({
+            id: question.id,
+            type_id: question.type_id,
+            stem: question.stem,
+            answer: question.answer || '',
+            explanation: question.explanation || '',
+            source_id: question.source_id || undefined,
+            options: question.options || [],
+            tag_ids: question.tags?.map(tag => tag.id) || []
+          });
+        } else {
+          alert('获取题目详情失败: ' + result.error);
+          router.push('/questions');
+        }
       }
     } catch (error) {
       console.error('获取题目详情失败:', error);
@@ -90,34 +127,79 @@ export default function EditQuestionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.type_id || !formData.stem.trim()) {
-      alert('请填写必填项');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/questions/${questionId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        alert('题目更新成功');
-        router.push('/questions');
-      } else {
-        alert('更新失败: ' + result.error);
+    if (isMaterialQuestion) {
+      // 材料题提交
+      if (!materialFormData.material_content?.trim()) {
+        alert('请填写材料内容');
+        return;
       }
-    } catch (error) {
-      console.error('更新题目失败:', error);
-      alert('更新失败');
-    } finally {
-      setLoading(false);
+      
+      if (!materialFormData.questions || materialFormData.questions.length === 0) {
+        alert('请至少添加一道小题');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/materials/${materialFormData.material_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: materialFormData.material_id,
+            title: materialFormData.material_title,
+            content: materialFormData.material_content,
+            source_id: materialFormData.material_source_id,
+            questions: materialFormData.questions
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('材料题更新成功');
+          router.push('/questions');
+        } else {
+          alert('更新失败: ' + result.error);
+        }
+      } catch (error) {
+        console.error('更新材料题失败:', error);
+        alert('更新失败');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // 普通题目提交
+      if (!formData.type_id || !formData.stem.trim()) {
+        alert('请填写必填项');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/questions/${questionId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('题目更新成功');
+          router.push('/questions');
+        } else {
+          alert('更新失败: ' + result.error);
+        }
+      } catch (error) {
+        console.error('更新题目失败:', error);
+        alert('更新失败');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -185,8 +267,45 @@ export default function EditQuestionPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 题目类型切换 */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">基本信息</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">题目类型</h2>
+            <div className="flex gap-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="questionType"
+                  checked={!isMaterialQuestion}
+                  onChange={() => setIsMaterialQuestion(false)}
+                  className="mr-2"
+                />
+                <span className="text-gray-700">普通题目</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="questionType"
+                  checked={isMaterialQuestion}
+                  onChange={() => setIsMaterialQuestion(true)}
+                  className="mr-2"
+                />
+                <span className="text-gray-700">材料题</span>
+              </label>
+            </div>
+          </div>
+
+          {isMaterialQuestion ? (
+            <MaterialQuestionEditor
+              formData={materialFormData}
+              setFormData={setMaterialFormData}
+              questionTypes={questionTypes}
+              sources={sources}
+              tags={tags}
+              loading={loading}
+            />
+          ) : (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">基本信息</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* 题型 */}
@@ -259,85 +378,86 @@ export default function EditQuestionPage() {
                 label="解析"
               />
             </div>
-          </div>
 
-          {/* 选项 */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">选项</h2>
-              <button
-                type="button"
-                onClick={addOption}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                添加选项
-              </button>
+            {/* 选项 */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">选项</h2>
+                <button
+                  type="button"
+                  onClick={addOption}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  添加选项
+                </button>
+              </div>
+
+              {formData.options && formData.options.length > 0 ? (
+                <div className="space-y-4">
+                  {formData.options.map((option, index) => (
+                    <div key={index} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
+                      <div className="flex-shrink-0">
+                        <span className="bg-gray-100 text-gray-800 text-sm px-2 py-1 rounded">
+                          {option.opt_label}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <LatexEditor
+                          value={option.opt_content}
+                          onChange={(value) => updateOption(index, 'opt_content', value)}
+                          placeholder="请输入选项内容，支持LaTeX公式..."
+                          rows={2}
+                          className="mb-0"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={option.is_correct}
+                            onChange={(e) => updateOption(index, 'is_correct', e.target.checked)}
+                            className="mr-2"
+                          />
+                          <span className="text-sm text-gray-700">正确答案</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeOption(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">暂无选项，点击"添加选项"按钮添加</p>
+              )}
             </div>
 
-            {formData.options && formData.options.length > 0 ? (
-              <div className="space-y-4">
-                {formData.options.map((option, index) => (
-                  <div key={index} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
-                    <div className="flex-shrink-0">
-                      <span className="bg-gray-100 text-gray-800 text-sm px-2 py-1 rounded">
-                        {option.opt_label}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <LatexEditor
-                        value={option.opt_content}
-                        onChange={(value) => updateOption(index, 'opt_content', value)}
-                        placeholder="请输入选项内容，支持LaTeX公式..."
-                        rows={2}
-                        className="mb-0"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={option.is_correct}
-                          onChange={(e) => updateOption(index, 'is_correct', e.target.checked)}
-                          className="mr-2"
-                        />
-                        <span className="text-sm text-gray-700">正确答案</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => removeOption(index)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </div>
+            {/* 标签 */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">标签</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {tags.map(tag => (
+                  <label key={tag.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.tag_ids?.includes(tag.id) || false}
+                      onChange={(e) => handleTagChange(tag.id, e.target.checked)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">{tag.tag_name}</span>
+                  </label>
                 ))}
               </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">暂无选项，点击"添加选项"按钮添加</p>
-            )}
-          </div>
-
-          {/* 标签 */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">标签</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {tags.map(tag => (
-                <label key={tag.id} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.tag_ids?.includes(tag.id) || false}
-                    onChange={(e) => handleTagChange(tag.id, e.target.checked)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">{tag.tag_name}</span>
-                </label>
-              ))}
+              {tags.length === 0 && (
+                <p className="text-gray-500 text-center py-4">暂无标签，请先创建标签</p>
+              )}
             </div>
-            {tags.length === 0 && (
-              <p className="text-gray-500 text-center py-4">暂无标签，请先创建标签</p>
-            )}
           </div>
+          )}
 
           {/* 提交按钮 */}
           <div className="flex justify-end gap-4">
@@ -353,7 +473,7 @@ export default function EditQuestionPage() {
               disabled={loading}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? '更新中...' : '更新题目'}
+              {loading ? '更新中...' : (isMaterialQuestion ? '更新材料题' : '更新题目')}
             </button>
           </div>
         </form>

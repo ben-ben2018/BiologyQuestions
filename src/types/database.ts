@@ -42,6 +42,26 @@ export interface QuestionTag {
   tag_id: number;
 }
 
+export interface Material {
+  id: number;
+  title?: string;
+  content: string;
+  source_id?: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface MaterialQuestion {
+  material_id: number;
+  question_id: number;
+  sub_no: number;
+}
+
+export interface MaterialWithDetails extends Material {
+  source_name?: string;
+  questions?: QuestionWithDetails[];
+}
+
 // 扩展类型，用于前端显示
 export interface QuestionWithDetails extends Question {
   type_name?: string;
@@ -62,6 +82,26 @@ export interface CreateQuestionData {
 
 export interface UpdateQuestionData extends Partial<CreateQuestionData> {
   id: number;
+}
+
+export interface CreateMaterialData {
+  title?: string;
+  content: string;
+  source_id?: number;
+  questions?: CreateQuestionData[];
+}
+
+export interface UpdateMaterialData extends Partial<CreateMaterialData> {
+  id: number;
+}
+
+export interface MaterialQuestionData {
+  material_id?: number;
+  is_material_question: boolean;
+  material_content?: string;
+  material_title?: string;
+  material_source_id?: number;
+  questions?: CreateQuestionData[];
 }
 
 // API响应类型
