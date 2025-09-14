@@ -58,10 +58,14 @@ export default function PapersPage() {
       const result = await response.json();
 
       if (result.success) {
-        const questionsWithSelection = result.data.questions.map((q: QuestionWithDetails) => ({
-          ...q,
-          selected: false
-        }));
+        // 保持已选择的题目状态
+        const questionsWithSelection = result.data.questions.map((q: QuestionWithDetails) => {
+          const existingQuestion = questions.find(existing => existing.id === q.id);
+          return {
+            ...q,
+            selected: existingQuestion ? existingQuestion.selected : false
+          };
+        });
         setQuestions(questionsWithSelection);
         setPagination(result.data.pagination);
       } else {
@@ -87,10 +91,14 @@ export default function PapersPage() {
       const result = await response.json();
 
       if (result.success) {
-        const materialsWithSelection = result.data.materials.map((m: MaterialWithDetails) => ({
-          ...m,
-          selected: false
-        }));
+        // 保持已选择的材料题状态
+        const materialsWithSelection = result.data.materials.map((m: MaterialWithDetails) => {
+          const existingMaterial = materials.find(existing => existing.id === m.id);
+          return {
+            ...m,
+            selected: existingMaterial ? existingMaterial.selected : false
+          };
+        });
         setMaterials(materialsWithSelection);
         setPagination(result.data.pagination);
       } else {
@@ -189,7 +197,16 @@ export default function PapersPage() {
     } else {
       fetchMaterials();
     }
-  }, [searchParams, activeTab]);
+  }, [searchParams]);
+
+  // 切换标签页时，如果数据为空则获取数据
+  useEffect(() => {
+    if (activeTab === 'questions' && questions.length === 0) {
+      fetchQuestions();
+    } else if (activeTab === 'materials' && materials.length === 0) {
+      fetchMaterials();
+    }
+  }, [activeTab]);
 
   const handleSearchChange = (field: keyof QuestionQueryParams, value: any) => {
     setSearchParams(prev => ({
